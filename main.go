@@ -21,10 +21,31 @@ const (
 
 func (game_state *GameState) Move(direction Direction) {
 	if direction == West {
+		for j := range 4 {
+			c_i := 0
+			for i := range 4 {
+				if game_state.Board[j][i] != 0 {
+					if game_state.Board[j][c_i] == 0 {
+						game_state.Board[j][c_i] = game_state.Board[j][i]
+						game_state.Board[j][i] = 0
 
-	} else {
-		panic("Not implemented")
-	}
+					}else if game_state.Board[j][i] == game_state.Board[j][c_i]{
+						game_state.Board[j][c_i] += game_state.Board[j][i]
+						game_state.Board[j][i] = 0
+					
+					}else {
+						game_state.Board[j][c_i+1] = game_state.Board[j][i]
+						game_state.Board[j][i] = 0
+					}
+					c_i++
+					
+				}else {
+					panic("Not implemented yet")
+				}
+				
+			}
+		}
+		
 }
 
 func MakeGame() GameState {
