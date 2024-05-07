@@ -24,41 +24,67 @@ func (game_state *GameState) Move(direction Direction) {
 	case West:
 		for j := range 4 {
 			c_i := 0
-			for i := 1; i < 4; i++ {
-				if game_state.Board[j][i] != 0 {
-					if game_state.Board[j][c_i] == 0 {
-						game_state.Board[j][c_i] = game_state.Board[j][i]
-						game_state.Board[j][i] = 0
+			for i := 0; i < 4; i++ {
 
-					} else {
-						if game_state.Board[j][i] == game_state.Board[j][c_i] {
-							game_state.Board[j][c_i] += game_state.Board[j][i]
-						} else {
-							game_state.Board[j][c_i+1] = game_state.Board[j][i]
-						}
+				// when origin is 0 -> do nothing
+				// when target is 0 and origin is non-zero -> move
+				// when target is non-zero and origin is equal -> combine, inc
+				// when target is non-zero and origin is different -> move to neighbor, inc
+
+				origin := game_state.Board[j][i]
+				target := game_state.Board[j][c_i]
+
+				if origin == 0 || c_i == i {
+					continue
+				}
+
+				// move or combine or move to neighbour
+
+				if target == 0 {
+					game_state.Board[j][i] = 0
+					game_state.Board[j][c_i] = origin
+				} else {
+					if origin == target {
+						// combine the tiles
 						game_state.Board[j][i] = 0
+						game_state.Board[j][c_i] = origin + origin
 						c_i++
+					} else {
+						c_i++
+						game_state.Board[j][i] = 0
+						game_state.Board[j][c_i] = origin
 					}
 				}
 			}
 		}
+
 	case East:
 		for j := range 4 {
 			c_i := 3
-			for i := 2; i >= 0; i-- {
-				if game_state.Board[j][i] != 0 {
-					if game_state.Board[j][c_i] == 0 {
-						game_state.Board[j][c_i] = game_state.Board[j][i]
-						game_state.Board[j][i] = 0
+			for i := 3; i >= 0; i-- {
 
-					} else {
-						if game_state.Board[j][i] == game_state.Board[j][c_i] {
-							game_state.Board[j][c_i] += game_state.Board[j][i]
-						} else {
-							game_state.Board[j][c_i-1] = game_state.Board[j][i]
-						}
+				origin := game_state.Board[j][i]
+				target := game_state.Board[j][c_i]
+
+				if origin == 0 || c_i == i {
+					continue
+				}
+
+				// move or combine or move to neighbour
+
+				if target == 0 {
+					game_state.Board[j][i] = 0
+					game_state.Board[j][c_i] = origin
+				} else {
+					if origin == target {
+						// combine the tiles
 						game_state.Board[j][i] = 0
+						game_state.Board[j][c_i] = origin + origin
 						c_i--
+					} else {
+						c_i--
+						game_state.Board[j][i] = 0
+						game_state.Board[j][c_i] = origin
 					}
 				}
 			}
@@ -66,20 +92,29 @@ func (game_state *GameState) Move(direction Direction) {
 	case North:
 		for i := range 4 {
 			c_j := 0
-			for j := 1; j < 4; j++ {
-				if game_state.Board[j][i] != 0 {
-					if game_state.Board[c_j][i] == 0 {
-						game_state.Board[c_j][i] = game_state.Board[j][i]
-						game_state.Board[j][i] = 0
+			for j := 0; j < 4; j++ {
+				origin := game_state.Board[j][i]
+				target := game_state.Board[c_j][i]
 
-					} else {
-						if game_state.Board[j][i] == game_state.Board[c_j][i] {
-							game_state.Board[c_j][i] += game_state.Board[j][i]
-						} else {
-							game_state.Board[c_j+1][i] = game_state.Board[j][i]
-						}
+				if origin == 0 || c_j == j {
+					continue
+				}
+
+				// move or combine or move to neighbour
+
+				if target == 0 {
+					game_state.Board[j][i] = 0
+					game_state.Board[c_j][i] = origin
+				} else {
+					if origin == target {
+						// combine the tiles
 						game_state.Board[j][i] = 0
+						game_state.Board[c_j][i] = origin + origin
 						c_j++
+					} else {
+						c_j++
+						game_state.Board[j][i] = 0
+						game_state.Board[c_j][i] = origin
 					}
 				}
 			}
@@ -87,20 +122,28 @@ func (game_state *GameState) Move(direction Direction) {
 	case South:
 		for i := range 4 {
 			c_j := 3
-			for j := 2; j >= 0; j-- {
-				if game_state.Board[j][i] != 0 {
-					if game_state.Board[c_j][i] == 0 {
-						game_state.Board[c_j][i] = game_state.Board[j][i]
-						game_state.Board[j][i] = 0
+			for j := 3; j >= 0; j-- {
+				origin := game_state.Board[j][i]
+				target := game_state.Board[c_j][i]
 
-					} else {
-						if game_state.Board[j][i] == game_state.Board[c_j][i] {
-							game_state.Board[c_j][i] += game_state.Board[j][i]
-						} else {
-							game_state.Board[c_j-1][i] = game_state.Board[j][i]
-						}
+				if origin == 0 || c_j == j {
+					continue
+				}
+
+				// move or combine or move to neighbour
+				if target == 0 {
+					game_state.Board[j][i] = 0
+					game_state.Board[c_j][i] = origin
+				} else {
+					if origin == target {
+						// combine the tiles
 						game_state.Board[j][i] = 0
+						game_state.Board[c_j][i] = origin + origin
 						c_j--
+					} else {
+						c_j--
+						game_state.Board[j][i] = 0
+						game_state.Board[c_j][i] = origin
 					}
 				}
 			}
