@@ -39,19 +39,17 @@ func (game_state *GameState) Move(direction Direction) {
 				}
 
 				// move or combine or move to neighbour
+				game_state.Board[j][i] = 0
 
 				if target == 0 {
-					game_state.Board[j][i] = 0
 					game_state.Board[j][c_i] = origin
 				} else {
 					if origin == target {
 						// combine the tiles
-						game_state.Board[j][i] = 0
 						game_state.Board[j][c_i] = origin + origin
 						c_i++
 					} else {
 						c_i++
-						game_state.Board[j][i] = 0
 						game_state.Board[j][c_i] = origin
 					}
 				}
@@ -71,19 +69,17 @@ func (game_state *GameState) Move(direction Direction) {
 				}
 
 				// move or combine or move to neighbour
+				game_state.Board[j][i] = 0
 
 				if target == 0 {
-					game_state.Board[j][i] = 0
 					game_state.Board[j][c_i] = origin
 				} else {
 					if origin == target {
 						// combine the tiles
-						game_state.Board[j][i] = 0
 						game_state.Board[j][c_i] = origin + origin
 						c_i--
 					} else {
 						c_i--
-						game_state.Board[j][i] = 0
 						game_state.Board[j][c_i] = origin
 					}
 				}
@@ -101,19 +97,17 @@ func (game_state *GameState) Move(direction Direction) {
 				}
 
 				// move or combine or move to neighbour
+				game_state.Board[j][i] = 0
 
 				if target == 0 {
-					game_state.Board[j][i] = 0
 					game_state.Board[c_j][i] = origin
 				} else {
 					if origin == target {
 						// combine the tiles
-						game_state.Board[j][i] = 0
 						game_state.Board[c_j][i] = origin + origin
 						c_j++
 					} else {
 						c_j++
-						game_state.Board[j][i] = 0
 						game_state.Board[c_j][i] = origin
 					}
 				}
@@ -131,24 +125,33 @@ func (game_state *GameState) Move(direction Direction) {
 				}
 
 				// move or combine or move to neighbour
+				game_state.Board[j][i] = 0
+
 				if target == 0 {
-					game_state.Board[j][i] = 0
 					game_state.Board[c_j][i] = origin
 				} else {
 					if origin == target {
 						// combine the tiles
-						game_state.Board[j][i] = 0
 						game_state.Board[c_j][i] = origin + origin
 						c_j--
 					} else {
 						c_j--
-						game_state.Board[j][i] = 0
 						game_state.Board[c_j][i] = origin
 					}
 				}
 			}
 		}
 	}
+}
+
+// returns true if it is over
+func (game_state *GameState) Update(dir Direction) bool {
+
+	if !game_state.MovePossible(dir) {
+		return false
+	}
+
+	game_state.Move(dir)
 
 	for {
 		random_index := rand.Int() % 16
@@ -157,6 +160,42 @@ func (game_state *GameState) Move(direction Direction) {
 			break
 		}
 	}
+
+	game_state.Step++
+	return game_state.GameOver()
+}
+
+func (game_state *GameState) MovePossible(dir Direction) bool {
+
+	// copy the board over
+	var test_game GameState
+	for j := range 4 {
+		for i := range 4 {
+			test_game.Board[j][i] = game_state.Board[j][i]
+		}
+	}
+
+	test_game.Move(dir)
+
+	for j := range 4 {
+		for i := range 4 {
+			if test_game.Board[j][i] != game_state.Board[j][i] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (game_state *GameState) GameOver() bool {
+
+	for _, d := range [4]Direction{North, South, East, West} {
+		if game_state.MovePossible(d) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func MakeGame() GameState {
