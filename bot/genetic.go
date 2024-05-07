@@ -8,8 +8,7 @@ import (
 )
 
 func main() {
-	rand.Seed(69)
-	gamestate := game.MakeGame()
+	gamestate := game.MakeSeedGame(69)
 	bot := Bot{}
 	bot.generate_moves()
 	fmt.Println(bot)

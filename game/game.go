@@ -3,11 +3,13 @@ package game
 import (
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 type GameState struct {
-	Board [4][4]int
-	Step  int
+	Board           [4][4]int
+	Step            int
+	RandomGenerator *rand.Rand
 }
 
 type Direction uint8
@@ -154,7 +156,7 @@ func (game_state *GameState) Update(dir Direction) bool {
 	game_state.Move(dir)
 
 	for {
-		random_index := rand.Int() % 16
+		random_index := game_state.RandomGenerator.Int() % 16
 		if game_state.Board[random_index/4][random_index%4] == 0 {
 			game_state.Board[random_index/4][random_index%4] = 2
 			break
@@ -197,16 +199,21 @@ func (game_state *GameState) GameOver() bool {
 
 	return true
 }
-
-func MakeGame() GameState {
+func MakeSeedGame(seed int64) GameState {
 	game := GameState{}
-	random_index := rand.Int() % 16
+	game.RandomGenerator = rand.New(rand.NewSource(seed))
+
+	random_index := game.RandomGenerator.Int() % 16
 	game.Board[random_index/4][random_index%4] = 2
-	random_index = rand.Int() % 16
+	random_index = game.RandomGenerator.Int() % 16
 	game.Board[random_index/4][random_index%4] = 2
-	random_index = rand.Int() % 16
+	random_index = game.RandomGenerator.Int() % 16
 	game.Board[random_index/4][random_index%4] = 2
 
+	return game
+}
+func MakeGame() GameState {
+	game := MakeSeedGame(time.Now().UnixNano())
 	return game
 }
 

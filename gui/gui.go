@@ -262,7 +262,7 @@ func main() {
 	gl.Ortho(0, W, H, 0, -1, 1)
 
 	init_fonts()
-	g := game.MakeGame()
+	g := game.MakeSeedGame(69)
 	ani_state := Animation_State{}
 	ani_state.State1 = g
 	ani_state.State2 = g
