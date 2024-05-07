@@ -10,8 +10,8 @@ import (
 
 const (
 	NUMBER_OF_BOTS         = 100 // has to be even too!
-	NUMBER_OF_MOVES        = 1000
-	NUMBER_SLICE_POSITIONS = 12 // has to be even!
+	NUMBER_OF_MOVES        = 1200
+	NUMBER_SLICE_POSITIONS = 6 // has to be even!
 	NUMBER_GENERATIONS     = 5000
 )
 
@@ -20,6 +20,9 @@ func main() {
 	for i := range NUMBER_OF_BOTS {
 		bots[i] = MakeBot(69)
 	}
+
+	var kid1 Bot
+	var kid2 Bot
 
 	for generation_nr := range NUMBER_GENERATIONS {
 		var scores_sum float64
@@ -51,8 +54,8 @@ func main() {
 			mother_idx, father_idx := choose2(cdf[:])
 
 			// the pair makes 2 chilren with crossover and random mutation
-			kid1 := MakeBot(69)
-			kid2 := MakeBot(69)
+			kid1 = MakeBot(69)
+			kid2 = MakeBot(69)
 
 			// copy
 			for i := range NUMBER_OF_MOVES {
@@ -97,13 +100,21 @@ func main() {
 			children[pair*2+1] = kid2
 		}
 
-		fmt.Printf("Generation %v\n", generation_nr)
-		for i := range NUMBER_OF_BOTS {
-			fmt.Println(bots[i].Gs.Board, bots[i].Gs.Step)
-		}
+		best_bot := find_best_bot(bots[:])
+		fmt.Printf("Generation %v %v\n", generation_nr, best_bot.Gs.Step)
 
-		// parents die and kids take over the world
-		bots = children
+		/*
+			for i := range NUMBER_OF_BOTS {
+				fmt.Printf("Steps: %v, Board: %v\n", bots[i].Gs.Step, bots[i].Gs.Board)
+			}*/
+
+		if generation_nr != NUMBER_GENERATIONS-1 {
+			bots = children
+		}
+	}
+
+	for i := range NUMBER_OF_BOTS {
+		fmt.Printf("Steps: %v, Board: %v\n", bots[i].Gs.Step, bots[i].Gs.Board)
 	}
 
 }
@@ -141,6 +152,19 @@ func evaluate(bot *Bot) float64 {
 	}
 
 	return float64(bot.Gs.Step)*linear_weight + float64(m)*exp_weight
+}
+
+func find_best_bot(bots []Bot) *Bot {
+	var max_x float64
+	var index int
+	for i := range bots {
+		x := evaluate(&bots[i])
+		if x > max_x {
+			max_x = x
+			index = i
+		}
+	}
+	return &bots[index]
 }
 
 // utility probability
