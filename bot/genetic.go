@@ -12,10 +12,14 @@ const (
 	NUMBER_OF_BOTS         = 100 // has to be even too!
 	NUMBER_OF_MOVES        = 1200
 	NUMBER_SLICE_POSITIONS = 6 // has to be even!
-	NUMBER_GENERATIONS     = 5000
+	NUMBER_GENERATIONS     = 100
 )
 
+var random_gen *rand.Rand
+
 func main() {
+
+	random_gen = rand.New(rand.NewSource(1231))
 
 	for i := range NUMBER_OF_BOTS {
 		bots[i] = MakeBot(69)
@@ -66,7 +70,7 @@ func main() {
 			// crossover slices
 			var slice_indices [NUMBER_SLICE_POSITIONS]int
 			for i := range NUMBER_SLICE_POSITIONS {
-				slice_idx := rand.Int() % NUMBER_OF_MOVES
+				slice_idx := random_gen.Int() % NUMBER_OF_MOVES
 				slice_indices[i] = slice_idx
 			}
 			sort.Ints(slice_indices[:])
@@ -83,16 +87,16 @@ func main() {
 			// do mutations on both kids
 			mutation_rate := 0.0001 // 10**-4 to 10**-6 https://www.sciencedirect.com/topics/biochemistry-genetics-and-molecular-biology/mutation-rate
 			for i := range NUMBER_OF_MOVES {
-				r := rand.Float64()
+				r := random_gen.Float64()
 				if r <= mutation_rate {
-					kid1.moves[i] = game.Direction(rand.Int() % 4)
+					kid1.moves[i] = game.Direction(random_gen.Int() % 4)
 				}
 			}
 
 			for i := range NUMBER_OF_MOVES {
-				r := rand.Float64()
+				r := random_gen.Float64()
 				if r <= mutation_rate {
-					kid2.moves[i] = game.Direction(rand.Int() % 4)
+					kid2.moves[i] = game.Direction(random_gen.Int() % 4)
 				}
 			}
 
@@ -128,7 +132,7 @@ type Bot struct {
 
 func (bot *Bot) generate_moves() {
 	for _ = range NUMBER_OF_MOVES {
-		bot.moves = append(bot.moves, game.Direction(rand.Int()%4))
+		bot.moves = append(bot.moves, game.Direction(random_gen.Int()%4))
 	}
 }
 
@@ -181,7 +185,7 @@ func get_cdf(pdf [NUMBER_OF_BOTS]float64) [NUMBER_OF_BOTS]float64 {
 
 // returns chosen index
 func choose(cdf []float64) int {
-	r := rand.Float64()
+	r := random_gen.Float64()
 	bucket := 0
 	for r > cdf[bucket] {
 		bucket++
