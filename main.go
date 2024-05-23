@@ -1,28 +1,19 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/bbeni/genetic_bros/game"
+	"github.com/bbeni/genetic_bros/visualizer"
 )
 
 func main() {
-	g := game.MakeGame()
-	fmt.Println(g)
+	gs := game.MakeSeedGame(69)
 
-	fmt.Println("West")
-	g.Move(game.West)
-	fmt.Println(g)
+	move_list := []game.Direction{
+		game.East, game.West, game.East, game.South, game.North,
+		game.West, game.South, game.North, game.West, game.East,
+		game.West, game.East, game.South, game.North, game.West,
+		game.South, game.North, game.West,
+	}
 
-	fmt.Println("East")
-	g.Move(game.East)
-	fmt.Println(g)
-
-	fmt.Println("North")
-	g.Move(game.North)
-	fmt.Println(g)
-
-	fmt.Println("South")
-	g.Move(game.South)
-	fmt.Println(g)
+	visualizer.Visualize_Game(&gs, move_list, 0.1, 1)
 }

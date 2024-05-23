@@ -1,10 +1,11 @@
-package main
+package visualizer
 
 import (
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
+	"math"
 	"runtime"
 	"time"
 
@@ -25,7 +26,7 @@ func init() {
 	runtime.LockOSThread()
 }
 
-var fontFace32 font.Face
+var fontFace48 font.Face
 var fontFace64 font.Face
 var fontFace128 font.Face
 
@@ -35,7 +36,7 @@ func init_fonts() {
 		panic(err)
 	}
 
-	fontFace32 = truetype.NewFace(font, &truetype.Options{Size: 30})
+	fontFace48 = truetype.NewFace(font, &truetype.Options{Size: 48})
 	fontFace64 = truetype.NewFace(font, &truetype.Options{Size: 64})
 	fontFace128 = truetype.NewFace(font, &truetype.Options{Size: 128})
 
@@ -84,13 +85,18 @@ func pre_render_numbers(w, h int) {
 	for i := range NUMBER_OF_NUMBERS {
 		n := (2 << i)
 		text := fmt.Sprint(n)
-		texture_id := pre_render_text_centered(w, h, text, color.RGBA{24, 24, 24, 255}, fontFace32)
-		texture_ids[i] = texture_id
+
+		if n > 999 {
+			texture_ids[i] = Pre_Render_Text_Centered(w, h, text, color.RGBA{24, 24, 24, 255}, fontFace48)
+		} else {
+			texture_ids[i] = Pre_Render_Text_Centered(w, h, text, color.RGBA{24, 24, 24, 255}, fontFace64)
+		}
+
 	}
 }
 
 // renders a text and loads it to the gpu, returns the texture_id
-func pre_render_text_centered(w, h int, text string, c color.RGBA, fontFace font.Face) uint32 {
+func Pre_Render_Text_Centered(w, h int, text string, c color.RGBA, fontFace font.Face) uint32 {
 	var texture_id uint32
 	gl.GenTextures(1, &texture_id)
 	img, ok := render_text(text, c, fontFace).(*image.RGBA)
@@ -149,7 +155,7 @@ func draw_texture(x, y, w, h int32, texture_id uint32) {
 	gl.Disable(gl.TEXTURE_2D)
 }
 
-func draw_tile(x, y, w, h int32, n int) {
+func Draw_Tile(x, y, w, h int32, n int) {
 
 	target := n
 	power_of_2 := 0
@@ -171,9 +177,10 @@ func draw_tile(x, y, w, h int32, n int) {
 }
 
 type Input_State struct {
-	Pressed bool // gets reset to false when handeled
-	Dir     game.Direction
-	Quit    bool
+	Pressed    bool // gets reset to false when handeled
+	Dir        game.Direction
+	Quit       bool
+	Interacted bool
 }
 
 var input_state = Input_State{}
@@ -240,7 +247,17 @@ const (
 
 var texture_game_over uint32
 
-func main() {
+func Play_Game(gs *game.GameState) {
+	Visualize_Game(gs, []game.Direction{}, -1, -1)
+}
+
+// if passed an empty array of moves we are just playing the game normaly
+func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time float32, delay_on_gameover float32) {
+
+	if len(driver_moves) == 0 {
+		input_state.Interacted = true
+	}
+
 	err := glfw.Init()
 	if err != nil {
 		panic(err)
@@ -262,7 +279,9 @@ func main() {
 	gl.Ortho(0, W, H, 0, -1, 1)
 
 	init_fonts()
-	g := game.MakeSeedGame(69)
+
+	g := *gs
+
 	ani_state := Animation_State{}
 	ani_state.State1 = g
 	ani_state.State2 = g
@@ -274,6 +293,10 @@ func main() {
 	game_over := false
 	game_over_timer := 3.0
 
+	driver_index := 0
+
+	game_time := 0.0
+
 	for !window.ShouldClose() {
 
 		// Handle input
@@ -284,11 +307,12 @@ func main() {
 		if !game_over {
 			if input_state.Pressed {
 				input_state.Pressed = false
+				input_state.Interacted = true
 				ani_state.State1 = g
 				if g.Update(input_state.Dir) {
 					// it's game over
 					if texture_game_over == 0 {
-						texture_game_over = pre_render_text_centered(W, H, "Game Over!", color.RGBA{255, 255, 255, 255}, fontFace128)
+						texture_game_over = Pre_Render_Text_Centered(W, H, "Game Over!", color.RGBA{255, 255, 255, 255}, fontFace128)
 					}
 					game_over = true
 					g = game.MakeGame()
@@ -304,6 +328,29 @@ func main() {
 			}
 		}
 
+		// if using the slice of directions driver_moves to drive the game
+
+		if !input_state.Interacted {
+
+			proposed_index := int(math.Floor(game_time / float64(move_time)))
+			if driver_index != proposed_index && proposed_index < len(driver_moves) && !game_over {
+				input_state.Pressed = false
+				ani_state.State1 = g
+				if g.Update(driver_moves[driver_index]) {
+					// it's game over but we dont draw end screen
+					game_over = true
+				}
+				ani_state.State2 = g
+				ani_state.T = 0
+				driver_index = proposed_index
+			}
+			if game_over || proposed_index >= len(driver_moves) {
+				delay_on_gameover -= 0.020 //millis
+				if delay_on_gameover <= 0 {
+					input_state.Quit = true
+				}
+			}
+		}
 		// drawing the game
 
 		need_animate := ani_state.update()
@@ -329,14 +376,14 @@ func main() {
 							bloat = int32(ani_state.T * float64(bloat_size))
 						}
 						real_size += bloat * 2
-						draw_tile(
+						Draw_Tile(
 							MARGIN+offset_x+TILE_PADDING-bloat,
 							MARGIN+offset_y+TILE_PADDING-bloat,
 							real_size,
 							real_size,
 							g.Board[j][i])
 					} else {
-						draw_tile(MARGIN+offset_x+TILE_PADDING, MARGIN+offset_y+TILE_PADDING, real_size, real_size, g.Board[j][i])
+						Draw_Tile(MARGIN+offset_x+TILE_PADDING, MARGIN+offset_y+TILE_PADDING, real_size, real_size, g.Board[j][i])
 					}
 				}
 			}
@@ -346,5 +393,6 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 		time.Sleep(time.Millisecond * 20)
+		game_time += 0.025 // 25 millisec
 	}
 }
