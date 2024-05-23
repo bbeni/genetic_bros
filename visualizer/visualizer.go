@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/png"
 	"math"
 	"runtime"
 	"time"
@@ -237,6 +238,7 @@ func (ani_state *Animation_State) update() bool {
 	return true
 }
 
+// for Visulize_Game()
 const (
 	W            = 820
 	H            = 820

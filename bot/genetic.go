@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 
@@ -10,15 +11,24 @@ import (
 )
 
 const (
-	NUMBER_OF_BOTS         = 100 // has to be even too!
-	NUMBER_OF_MOVES        = 1200
+	NUMBER_OF_BOTS         = 400 // has to be even too!
+	NUMBER_OF_MOVES        = 1500
 	NUMBER_SLICE_POSITIONS = 6 // has to be even!
-	NUMBER_GENERATIONS     = 10000
+	NUMBER_GENERATIONS     = 1750
+	MUTATION_RATE          = 0.0002 // 10**-4 to 10**-6 https://www.sciencedirect.com/topics/biochemistry-genetics-and-molecular-biology/mutation-rate
+
+	HAMMER_RANDOM_REPLACEMENT   = 0.03 // complete random bot
+	KILL_THRESHOLD_GENENERATION = 250  // after this generation it's hammer time
+	KILL_THRESHOLD              = 3000 // score below get's killed with probability:
+	HAMMER_PROBABILITY          = 0.05
 )
 
 var random_gen *rand.Rand
 
 func main() {
+
+	//visualizer.Visualize_Graph()
+	//return
 
 	random_gen = rand.New(rand.NewSource(42))
 
@@ -45,6 +55,46 @@ func main() {
 
 		}
 
+		// kill some bots
+		if generation_nr >= KILL_THRESHOLD_GENENERATION {
+
+			if random_gen.Float32() > HAMMER_PROBABILITY {
+				goto hammer_end
+			}
+
+			if generation_nr == KILL_THRESHOLD_GENENERATION {
+				fmt.Println("It's hammer time! (by Urs B.)")
+			}
+
+			best_idx := 0
+			best_score := 0.0
+			for i := range NUMBER_OF_BOTS {
+				if scores[i] > float64(best_score) {
+					best_score = scores[i]
+					best_idx = i
+				}
+			}
+
+			for i := range NUMBER_OF_BOTS {
+				if scores[i] < KILL_THRESHOLD {
+
+					if random_gen.Float32() < HAMMER_RANDOM_REPLACEMENT {
+						// just another pleb
+						bots[i] = MakeBot(random_gen.Int63())
+					} else {
+						// copy the best
+						alpha_bot := MakeBot(69)
+						for i := range NUMBER_OF_MOVES {
+							alpha_bot.moves[i] = bots[best_idx].moves[i]
+						}
+						//replace it
+						bots[i] = alpha_bot
+					}
+				}
+			}
+		}
+	hammer_end:
+
 		// normalize
 		for i := range NUMBER_OF_BOTS {
 			scores[i] /= scores_sum
@@ -53,7 +103,6 @@ func main() {
 		cdf := get_cdf(scores)
 
 		var children [NUMBER_OF_BOTS]Bot
-
 		for pair := range NUMBER_OF_BOTS / 2 {
 			// chose two random bots with probability proportional to scores
 			mother_idx, father_idx := choose2(cdf[:])
@@ -86,17 +135,16 @@ func main() {
 			}
 
 			// do mutations on both kids
-			mutation_rate := 0.0001 // 10**-4 to 10**-6 https://www.sciencedirect.com/topics/biochemistry-genetics-and-molecular-biology/mutation-rate
 			for i := range NUMBER_OF_MOVES {
 				r := random_gen.Float64()
-				if r <= mutation_rate {
+				if r <= MUTATION_RATE {
 					kid1.moves[i] = game.Direction(random_gen.Int() % 4)
 				}
 			}
 
 			for i := range NUMBER_OF_MOVES {
 				r := random_gen.Float64()
-				if r <= mutation_rate {
+				if r <= MUTATION_RATE {
 					kid2.moves[i] = game.Direction(random_gen.Int() % 4)
 				}
 			}
@@ -106,7 +154,7 @@ func main() {
 		}
 
 		best_bot := find_best_bot(bots[:])
-		fmt.Printf("Generation %v %v\n", generation_nr, best_bot.Gs.Step)
+		fmt.Printf("Generation: %v steps: %v score: %v\n", generation_nr, best_bot.Gs.Step, evaluate(best_bot))
 
 		/*
 			for i := range NUMBER_OF_BOTS {
@@ -127,7 +175,7 @@ func main() {
 	gs := game.MakeSeedGame(69)
 	fmt.Println("Visualizing the game! It should have the following state in the end:")
 	fmt.Println(best_bot.Gs)
-	visualizer.Visualize_Game(&gs, best_bot.moves, 0.01, 7)
+	visualizer.Visualize_Game(&gs, best_bot.moves, 0.01, 70)
 }
 
 var bots [NUMBER_OF_BOTS]Bot
@@ -150,8 +198,8 @@ func MakeBot(game_seed int64) Bot {
 	return bot
 }
 
+// calculate the score that is proportional to the probability of getting chosen
 func evaluate(bot *Bot) float64 {
-	linear_weight, exp_weight := 0.9, 0.1
 
 	m := 0
 	for _, row := range bot.Gs.Board {
@@ -162,7 +210,8 @@ func evaluate(bot *Bot) float64 {
 		}
 	}
 
-	return float64(bot.Gs.Step)*linear_weight + float64(m)*exp_weight
+	exp_factor := 0.005
+	return math.Exp(float64(bot.Gs.Step+m) * exp_factor)
 }
 
 func find_best_bot(bots []Bot) *Bot {
@@ -179,7 +228,6 @@ func find_best_bot(bots []Bot) *Bot {
 }
 
 // utility probability
-
 func get_cdf(pdf [NUMBER_OF_BOTS]float64) [NUMBER_OF_BOTS]float64 {
 	var out_cdf [NUMBER_OF_BOTS]float64
 
