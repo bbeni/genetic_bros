@@ -6,20 +6,21 @@ import (
 	"sort"
 
 	"github.com/bbeni/genetic_bros/game"
+	"github.com/bbeni/genetic_bros/visualizer"
 )
 
 const (
 	NUMBER_OF_BOTS         = 100 // has to be even too!
 	NUMBER_OF_MOVES        = 1200
 	NUMBER_SLICE_POSITIONS = 6 // has to be even!
-	NUMBER_GENERATIONS     = 100
+	NUMBER_GENERATIONS     = 10000
 )
 
 var random_gen *rand.Rand
 
 func main() {
 
-	random_gen = rand.New(rand.NewSource(1231))
+	random_gen = rand.New(rand.NewSource(42))
 
 	for i := range NUMBER_OF_BOTS {
 		bots[i] = MakeBot(69)
@@ -121,6 +122,12 @@ func main() {
 		fmt.Printf("Steps: %v, Board: %v\n", bots[i].Gs.Step, bots[i].Gs.Board)
 	}
 
+	// visualize the best bot we found on the sepecific we optimized it for
+	best_bot := find_best_bot(bots[:])
+	gs := game.MakeSeedGame(69)
+	fmt.Println("Visualizing the game! It should have the following state in the end:")
+	fmt.Println(best_bot.Gs)
+	visualizer.Visualize_Game(&gs, best_bot.moves, 0.01, 7)
 }
 
 var bots [NUMBER_OF_BOTS]Bot

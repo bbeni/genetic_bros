@@ -329,11 +329,11 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 		}
 
 		// if using the slice of directions driver_moves to drive the game
-
 		if !input_state.Interacted {
 
 			proposed_index := int(math.Floor(game_time / float64(move_time)))
-			if driver_index != proposed_index && proposed_index < len(driver_moves) && !game_over {
+
+			if driver_index < proposed_index && driver_index < len(driver_moves) && !game_over {
 				input_state.Pressed = false
 				ani_state.State1 = g
 				if g.Update(driver_moves[driver_index]) {
@@ -342,10 +342,11 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 				}
 				ani_state.State2 = g
 				ani_state.T = 0
-				driver_index = proposed_index
+				driver_index++
 			}
-			if game_over || proposed_index >= len(driver_moves) {
-				delay_on_gameover -= 0.020 //millis
+
+			if game_over || driver_index >= len(driver_moves) {
+				delay_on_gameover -= 0.015 //millis
 				if delay_on_gameover <= 0 {
 					input_state.Quit = true
 				}
@@ -359,7 +360,7 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 		gl.ClearColor(0.1, 0.1, 0.1, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
-		if !game_over {
+		if !game_over || !input_state.Interacted {
 
 			for j := range 4 {
 				offset_y := int32(TILE_SIZE * j)
@@ -392,7 +393,7 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 		}
 		window.SwapBuffers()
 		glfw.PollEvents()
-		time.Sleep(time.Millisecond * 20)
-		game_time += 0.025 // 25 millisec
+		time.Sleep(time.Millisecond * 10)
+		game_time += 0.015 // 15 millisec neuristic assumnig 5 millisec per iteration.. should calculate a real dt per frame!
 	}
 }
