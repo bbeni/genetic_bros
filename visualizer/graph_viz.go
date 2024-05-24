@@ -184,7 +184,7 @@ type Graph_Viz struct {
 func (gv *Graph_Viz) Update_And_Draw() {
 
 	if gv.Destroyed {
-		// fro now it's unrecoverable
+		// for now it's unrecoverable
 		return
 	}
 

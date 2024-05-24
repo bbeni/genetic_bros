@@ -250,21 +250,211 @@ const (
 var texture_game_over uint32
 
 func Play_Game(gs *game.GameState) {
-	Visualize_Game(gs, []game.Direction{}, -1, -1)
+	game_visual := Game_Visual_State{Game: gs, game_over_timer: 5.0}
+
+	for !game_visual.Destroyed {
+		game_visual.Update_And_Draw()
+
+		glfw.PollEvents()
+		time.Sleep(time.Millisecond * 10)
+		game_visual.GameTime += 0.015 // 15 millisec neuristic assumnig 5 millisec per iteration.. should calculate a real dt per frame!
+	}
 }
 
-// if passed an empty array of moves we are just playing the game normaly
 func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time float32, delay_on_gameover float32) {
 
-	if len(driver_moves) == 0 {
-		input_state.Interacted = true
+	driver := Game_Driver{
+		DriverMoves:     driver_moves,
+		MoveTime:        0.4,
+		DelayOnGameover: 1.0,
 	}
 
+	game_visual := Game_Visual_State{Game: gs, Driver: &driver, game_over_timer: 5.0}
+
+	for !game_visual.Destroyed {
+		game_visual.Update_And_Draw()
+
+		glfw.PollEvents()
+		time.Sleep(time.Millisecond * 10)
+		game_visual.GameTime += 0.015 // 15 millisec neuristic assumnig 5 millisec per iteration.. should calculate a real dt per frame!
+	}
+}
+
+type Game_Visual_State struct {
+	Window    *glfw.Window
+	Destroyed bool
+
+	Game         *game.GameState
+	Driver       *Game_Driver
+	driver_index int
+
+	GameTime float64
+
+	anim_state      Animation_State
+	bloat_size      float32
+	game_over       bool
+	game_over_timer float32 // how long it should display 'Game Over'
+}
+
+type Game_Driver struct {
+	DriverMoves     []game.Direction
+	MoveTime        float32
+	DelayOnGameover float32
+}
+
+// the driver can be 'nil' then it is just interactable
+// if driver is provided, we use it to play the game (for now it's just a struct that defines some variables)
+func New_Game_Visual(gs *game.GameState, driver *Game_Driver) *Game_Visual_State {
+	return &Game_Visual_State{
+		Driver: driver,
+	}
+}
+
+func (gvc *Game_Visual_State) Update_And_Draw() {
+
+	if gvc == nil {
+		// create it
+		*gvc = Game_Visual_State{}
+	}
+
+	if gvc.Destroyed {
+		// early out
+		return
+	}
+
+	if gvc.Window == nil {
+		// initialize the window
+		gvc.Window = new_game_window()
+	}
+
+	if gvc.Game == nil {
+		// create a new game
+		g := game.MakeGame()
+		gvc.Game = &g
+	}
+
+	if gvc.anim_state.T == 0 {
+		// we have to set some values
+		ani_state := Animation_State{}
+		ani_state.State1 = *gvc.Game
+		ani_state.State2 = *gvc.Game
+		ani_state.T = 1
+		ani_state.Dt = 0.1
+	}
+
+	// Handle input
+	if input_state.Quit || gvc.Window.ShouldClose() {
+		gvc.Destroyed = true
+		gvc.Window.Destroy()
+		return
+	}
+
+	game_time := gvc.GameTime
+
+	if !gvc.game_over {
+		if input_state.Pressed {
+			input_state.Pressed = false
+			input_state.Interacted = true
+			gvc.anim_state.State1 = *gvc.Game
+			if gvc.Game.Update(input_state.Dir) {
+				// it's game over
+				if texture_game_over == 0 {
+					texture_game_over = Pre_Render_Text_Centered(W, H, "Game Over!", color.RGBA{255, 255, 255, 255}, fontFace128)
+				}
+				gvc.game_over = true
+				g := game.MakeGame()
+				gvc.Game = &g
+			}
+			gvc.anim_state.State2 = *gvc.Game
+			gvc.anim_state.T = 0
+		}
+	} else {
+		gvc.game_over_timer -= 0.02
+		if gvc.game_over_timer <= 0 {
+			gvc.game_over_timer = 3.0
+			gvc.game_over = false
+		}
+	}
+
+	// if using the slice of directions driver_moves to drive the game
+	if !input_state.Interacted && gvc.Driver != nil {
+		move_time := gvc.Driver.MoveTime
+		driver_moves := gvc.Driver.DriverMoves
+		driver_index := gvc.driver_index
+
+		proposed_index := int(math.Floor(game_time / float64(move_time)))
+
+		if driver_index < proposed_index && driver_index < len(gvc.Driver.DriverMoves) && !gvc.game_over {
+			input_state.Pressed = false
+			gvc.anim_state.State1 = *gvc.Game
+			if gvc.Game.Update(driver_moves[driver_index]) {
+				// it's game over but we dont draw end screen
+				gvc.game_over = true
+			}
+			gvc.anim_state.State2 = *gvc.Game
+			gvc.anim_state.T = 0
+			gvc.driver_index++
+		}
+
+		if gvc.game_over || driver_index >= len(driver_moves) {
+			gvc.Driver.DelayOnGameover -= 0.015 //millis
+			if gvc.Driver.DelayOnGameover <= 0 {
+				input_state.Quit = true
+			}
+		}
+	}
+	// drawing the game
+
+	window := gvc.Window
+	bloat_size := gvc.bloat_size
+
+	need_animate := gvc.anim_state.update()
+	did_combine := gvc.anim_state.did_combine_lately()
+
+	window.MakeContextCurrent()
+	gl.ClearColor(0.1, 0.1, 0.1, 1)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+
+	if !gvc.game_over || !input_state.Interacted {
+
+		for j := range 4 {
+			offset_y := int32(TILE_SIZE * j)
+			for i := range 4 {
+				real_size := int32(TILE_SIZE - TILE_PADDING*2)
+				offset_x := int32(TILE_SIZE * i)
+
+				if need_animate && did_combine[j][i] {
+					// blow it up when animating
+					var bloat int32
+					if gvc.anim_state.T > 0.5 {
+						bloat = int32((1 - gvc.anim_state.T) * float64(bloat_size))
+					} else {
+						bloat = int32(gvc.anim_state.T * float64(bloat_size))
+					}
+					real_size += bloat * 2
+					Draw_Tile(
+						MARGIN+offset_x+TILE_PADDING-bloat,
+						MARGIN+offset_y+TILE_PADDING-bloat,
+						real_size,
+						real_size,
+						gvc.Game.Board[j][i])
+				} else {
+					Draw_Tile(MARGIN+offset_x+TILE_PADDING, MARGIN+offset_y+TILE_PADDING, real_size, real_size, gvc.Game.Board[j][i])
+				}
+			}
+		}
+	} else {
+		draw_texture(0, 0, W, H, texture_game_over)
+	}
+	window.SwapBuffers()
+	glfw.PollEvents()
+}
+
+func new_game_window() *glfw.Window {
 	err := glfw.Init()
 	if err != nil {
 		panic(err)
 	}
-	defer glfw.Terminate()
 
 	window, err := glfw.CreateWindow(W, H, "2048", nil, nil)
 	if err != nil {
@@ -281,6 +471,17 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 	gl.Ortho(0, W, H, 0, -1, 1)
 
 	init_fonts()
+	return window
+}
+
+/*
+
+// if passed an empty array of moves we are just playing the game normaly
+func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time float32, delay_on_gameover float32) {
+
+	if len(driver_moves) == 0 {
+		input_state.Interacted = true
+	}
 
 	g := *gs
 
@@ -360,7 +561,6 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 		did_combine := ani_state.did_combine_lately()
 
 		window.MakeContextCurrent()
-
 		gl.ClearColor(0.1, 0.1, 0.1, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
@@ -401,3 +601,4 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 		game_time += 0.015 // 15 millisec neuristic assumnig 5 millisec per iteration.. should calculate a real dt per frame!
 	}
 }
+*/

@@ -176,6 +176,7 @@ func main() {
 		}
 
 		best_bot := find_best_bot(bots[:])
+		worst_bot := find_worst_bot(bots[:])
 		fmt.Printf("Generation: %v steps: %v score: %v\n", generation_nr, best_bot.Gs.Step, evaluate(best_bot))
 
 		//TOTO Add Data to viz 1
