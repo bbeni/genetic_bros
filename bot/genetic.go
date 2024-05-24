@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 
 	"github.com/bbeni/genetic_bros/game"
@@ -12,9 +14,9 @@ import (
 
 const (
 	NUMBER_OF_BOTS         = 400 // has to be even too!
-	NUMBER_OF_MOVES        = 1500
-	NUMBER_SLICE_POSITIONS = 6 // has to be even!
-	NUMBER_GENERATIONS     = 1750
+	NUMBER_OF_MOVES        = 2000
+	NUMBER_SLICE_POSITIONS = 2 // has to be even!
+	NUMBER_GENERATIONS     = 2048
 	MUTATION_RATE          = 0.0002 // 10**-4 to 10**-6 https://www.sciencedirect.com/topics/biochemistry-genetics-and-molecular-biology/mutation-rate
 
 	HAMMER_RANDOM_REPLACEMENT   = 0.03 // complete random bot
@@ -39,9 +41,13 @@ func main() {
 	var kid1 Bot
 	var kid2 Bot
 
+	// List to store the highest scores of each bot in each generation
+	var highestScoresByGeneration [][]int
+
 	for generation_nr := range NUMBER_GENERATIONS {
 		var scores_sum float64
 		var scores [NUMBER_OF_BOTS]float64
+		var highestScores []int
 
 		for i := range NUMBER_OF_BOTS {
 			for _, move := range bots[i].moves {
@@ -53,7 +59,13 @@ func main() {
 			scores[i] = evaluate(&bots[i])
 			scores_sum += scores[i]
 
+			// Get the highest score of the current bot
+			highestScores = append(highestScores, bots[i].Gs.MaxValue())
 		}
+
+		// Save the highest scores of the current generation
+		highestScoresByGeneration = append(highestScoresByGeneration, highestScores)
+		//fmt.Printf("Miau: %v \n", highestScores)
 
 		// kill some bots
 		if generation_nr >= KILL_THRESHOLD_GENENERATION {
@@ -154,7 +166,7 @@ func main() {
 		}
 
 		best_bot := find_best_bot(bots[:])
-		fmt.Printf("Generation: %v steps: %v score: %v\n", generation_nr, best_bot.Gs.Step, evaluate(best_bot))
+		fmt.Printf("Generation: %v steps: %v score: %v\n", generation_nr, best_bot.Gs.Step, math.Round(evaluate(best_bot)))
 
 		/*
 			for i := range NUMBER_OF_BOTS {
@@ -163,6 +175,29 @@ func main() {
 
 		if generation_nr != NUMBER_GENERATIONS-1 {
 			bots = children
+		}
+	}
+
+	// Save highest scores to CSV
+	file, err := os.Create("highest_scores.csv")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	for _, generationScores := range highestScoresByGeneration {
+		strScores := make([]string, len(generationScores))
+		for i, score := range generationScores {
+			strScores[i] = fmt.Sprintf("%d", score)
+		}
+		err := writer.Write(strScores)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
 		}
 	}
 

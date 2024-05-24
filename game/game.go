@@ -146,6 +146,19 @@ func (game_state *GameState) Move(direction Direction) {
 	}
 }
 
+// MaxValue returns the highest integer in the Board
+func (game_state *GameState) MaxValue() int {
+	max := game_state.Board[0][0]
+	for j := 0; j < 4; j++ {
+		for i := 0; i < 4; i++ {
+			if game_state.Board[j][i] > max {
+				max = game_state.Board[j][i]
+			}
+		}
+	}
+	return max
+}
+
 // returns true if it is over
 func (game_state *GameState) Update(dir Direction) bool {
 
