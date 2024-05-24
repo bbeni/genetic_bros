@@ -359,6 +359,8 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 		need_animate := ani_state.update()
 		did_combine := ani_state.did_combine_lately()
 
+		window.MakeContextCurrent()
+
 		gl.ClearColor(0.1, 0.1, 0.1, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
