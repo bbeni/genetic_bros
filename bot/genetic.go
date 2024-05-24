@@ -27,8 +27,18 @@ var random_gen *rand.Rand
 
 func main() {
 
-	//visualizer.Visualize_Graph()
-	//return
+	// make the graph visualizer window 1
+	var graph_viz1 visualizer.Graph_Viz
+	graph_viz1.UserData = &visualizer.Data_Info{
+		Title:  "Best Bot Evaluation Each Generation",
+		XLabel: "Number of Generations",
+		YLabel: "Steps Reached",
+		XY:     make([]visualizer.XYData, 2),
+	}
+	graph_viz1.UserData.XY[0].Label = "Best Bot"
+	graph_viz1.UserData.XY[1].Label = "Worst Bot"
+
+	graph_viz1.Update_And_Draw()
 
 	random_gen = rand.New(rand.NewSource(42))
 
@@ -154,12 +164,23 @@ func main() {
 		}
 
 		best_bot := find_best_bot(bots[:])
-		fmt.Printf("Generation: %v steps: %v score: %v\n", generation_nr, best_bot.Gs.Step, evaluate(best_bot))
+		best_bot_score := evaluate(best_bot)
+		worst_bot := find_worst_bot(bots[:])
+		//worst_bot_score := evaluate(best_bot)
+		fmt.Printf("Generation: %v steps: %v score: %v\n", generation_nr, best_bot.Gs.Step, best_bot_score)
 
-		/*
-			for i := range NUMBER_OF_BOTS {
-				fmt.Printf("Steps: %v, Board: %v\n", bots[i].Gs.Step, bots[i].Gs.Board)
-			}*/
+		//TOTO Add Data to viz 1
+		graph_viz1.UserData.XY[0].XYs = append(graph_viz1.UserData.XY[0].XYs,
+			visualizer.XY{
+				Y: float64(best_bot.Gs.Step),
+				X: float64(generation_nr),
+			})
+		graph_viz1.UserData.XY[1].XYs = append(graph_viz1.UserData.XY[1].XYs,
+			visualizer.XY{
+				Y: float64(worst_bot.Gs.Step),
+				X: float64(generation_nr),
+			})
+		graph_viz1.Update_And_Draw()
 
 		if generation_nr != NUMBER_GENERATIONS-1 {
 			bots = children
@@ -221,6 +242,19 @@ func find_best_bot(bots []Bot) *Bot {
 		x := evaluate(&bots[i])
 		if x > max_x {
 			max_x = x
+			index = i
+		}
+	}
+	return &bots[index]
+}
+
+func find_worst_bot(bots []Bot) *Bot {
+	var min_x float64
+	var index int
+	for i := range bots {
+		x := evaluate(&bots[i])
+		if x < min_x {
+			min_x = x
 			index = i
 		}
 	}

@@ -1,11 +1,9 @@
 package visualizer
 
-/*
 import (
 	"image"
 	_ "image/png"
 	"os"
-	"time"
 
 	"math/rand"
 
@@ -14,6 +12,7 @@ import (
 	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
 	"gonum.org/v1/plot/vg/draw"
+	"gonum.org/v1/plot/vg/vgimg"
 
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -23,7 +22,7 @@ import (
 func Pre_Render_Image(w, h int, png image.Image) uint32 {
 	var texture_id uint32
 	gl.GenTextures(1, &texture_id)
-	img, ok := png.(*image.NRGBA)
+	img, ok := png.(*image.RGBA)
 	if ok {
 		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindTexture(gl.TEXTURE_2D, texture_id)
@@ -59,38 +58,71 @@ func ImageFromFilePath(filePath string) (image.Image, error) {
 	return image, err
 }
 
-func Make_Plot() (image.Image, error) {
-	rand.Seed(int64(0))
-
+func Make_Plot(w, h int, user_data *Data_Info) (image.Image, error) {
 	p := plot.New()
 
-	p.Title.Text = "Plotutil example"
-	p.X.Label.Text = "X"
-	p.Y.Label.Text = "Y"
+	if user_data == nil {
+		p.Title.Text = "We have no user_data. Please provide it!"
+		p.X.Label.Text = "X"
+		p.Y.Label.Text = "Y"
+	} else {
+		p.Title.Text = user_data.Title
+		p.X.Label.Text = user_data.XLabel
+		p.Y.Label.Text = user_data.YLabel
 
-	err := plotutil.AddLinePoints(p,
-		"First", randomPoints(15),
-		"Second", randomPoints(15),
-		"Third", randomPoints(15))
-	if err != nil {
-		panic(err)
+		var err error
+		// I know.. this is stupid
+		switch len(user_data.XY) {
+		case 1:
+			err = plotutil.AddLines(p,
+				user_data.XY[0].Label, user_data.XY[0].XYs,
+				user_data.XY[1].Label, user_data.XY[1].XYs,
+			)
+		case 2:
+			err = plotutil.AddLines(p,
+				user_data.XY[0].Label, user_data.XY[0].XYs,
+				user_data.XY[1].Label, user_data.XY[1].XYs,
+			)
+		case 3:
+			err = plotutil.AddLines(p,
+				user_data.XY[0].Label, user_data.XY[0].XYs,
+				user_data.XY[1].Label, user_data.XY[1].XYs,
+				user_data.XY[2].Label, user_data.XY[2].XYs,
+			)
+		default:
+			panic("Not implemented for len(user_data.XY) > 3: in Make_Plot()")
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		/*
+			for i := range user_data.XY {
+				err := plotutil.AddLines(p,
+					user_data.XY[i].Label, user_data.XY[i].XYs,
+				)
+
+				if err != nil {
+					panic(err)
+				}
+			} */
 	}
 
 	// Save the plot to a PNG file.
-	if err := p.Save(4*vg.Inch, 4*vg.Inch, "points.png"); err != nil {
-		panic(err)
-	}
+	//if err := p.Save(4*vg.Inch, 4*vg.Inch, "points.png"); err != nil {
+	//	panic(err)
+	//}
 
-	var vgc vg.Canvas
-	canvas := draw.NewCanvas(vgc, 6*vg.Inch, 4.8*vg.Inch)
-	p.Draw(canvas)
+	dpi := 72 * 2
+	dpi_o := vgimg.UseDPI(dpi)
+	wh_o := vgimg.UseWH(vg.Length(w*72/dpi), vg.Length(h*72/dpi))
+	canvas := vgimg.NewWith(dpi_o, wh_o)
 
-	rect1 := vg.Rectangle{Min: vg.Point{0, 0}, Max: vg.Point{6 * vg.Inch, 4.8 * vg.Inch}}
-	rect2 := image.Rectangle{Min: image.Point{0, 0}, Max: image.Point{int(6 * vg.Inch), int(5 * vg.Inch)}}
-
-	img := image.NewNRGBA(rect2)
-	canvas.DrawImage(rect1, img)
-
+	dc := draw.New(canvas)
+	p.Draw(dc)
+	img := canvas.Image()
+	//fmt.Printf(img.Bounds().String())
 	return img, nil
 }
 
@@ -108,15 +140,92 @@ func randomPoints(n int) plotter.XYs {
 	return pts
 }
 
-func Visualize_Graph() {
+func plotPoints(x []float64, y []float64) plotter.XYs {
 
-	w, h := 640, 480
+	n := len(x)
+	if n != len(y) {
+		panic("x[] and y[] must have the same lenghts!")
+	}
+
+	pts := make(plotter.XYs, n)
+	for i := range pts {
+		pts[i].X = x[i]
+		pts[i].Y = y[i]
+	}
+	return pts
+}
+
+type XY = plotter.XY
+
+type XYData struct {
+	XYs   plotter.XYs
+	Label string
+}
+
+type Data_Info struct {
+	XY     []XYData
+	XLabel string
+	YLabel string
+	Title  string
+}
+
+type Graph_Viz struct {
+	UserData *Data_Info // here the data should be set/updated by the user before Update_And_Draw()
+
+	Window    *glfw.Window
+	W, H      int
+	Destroyed bool
+	Initted   bool
+
+	// internal data
+	texture_id uint32
+}
+
+func (gv *Graph_Viz) Update_And_Draw() {
+
+	if gv.Destroyed {
+		// fro now it's unrecoverable
+		return
+	}
+
+	if !gv.Initted {
+		// initialize and spawn window
+		user_data := gv.UserData
+		*gv = *NewGraphViz() //(will set inited to true)
+		gv.UserData = user_data
+	}
+
+	if gv.Window.ShouldClose() {
+		gv.Window.Destroy()
+		gv.Destroyed = true
+		return
+	}
+
+	img, err := Make_Plot(gv.W, gv.H, gv.UserData)
+	if err != nil {
+		panic(err)
+	}
+
+	gv.Window.MakeContextCurrent()
+	gv.texture_id = Pre_Render_Image(gv.W, gv.H, img)
+
+	gl.ClearColor(0.1, 0.1, 0.1, 1)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+
+	draw_texture(0, 0, int32(gv.W), int32(gv.H), gv.texture_id)
+
+	gv.Window.SwapBuffers()
+	glfw.PollEvents()
+}
+
+func NewGraphViz() *Graph_Viz {
+
+	w, h := 854, 480
 
 	err := glfw.Init()
 	if err != nil {
 		panic(err)
 	}
-	defer glfw.Terminate()
 
 	window, err := glfw.CreateWindow(w, h, "Data View", nil, nil)
 	if err != nil {
@@ -134,23 +243,11 @@ func Visualize_Graph() {
 	// see https://gamedev.stackexchange.com/questions/49674/opengl-resizing-display-and-glortho-glviewport
 	gl.Ortho(0, float64(w), float64(h), 0, -1, 1)
 
-	img, err := ImageFromFilePath("hexiflexi1.png")
-	if err != nil {
-		panic(err)
-	}
-	texture_id := Pre_Render_Image(w, h, img)
-
-	Make_Plot()
-
-	for !window.ShouldClose() {
-		gl.ClearColor(0.1, 0.1, 0.1, 1)
-		gl.Clear(gl.COLOR_BUFFER_BIT)
-
-		draw_texture(0, 0, int32(w), int32(h), texture_id)
-
-		window.SwapBuffers()
-		glfw.PollEvents()
-		time.Sleep(time.Millisecond * 30)
+	return &Graph_Viz{
+		Window:    window,
+		W:         w,
+		H:         h,
+		Destroyed: false,
+		Initted:   true,
 	}
 }
-*/
