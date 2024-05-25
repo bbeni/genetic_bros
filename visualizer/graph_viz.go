@@ -73,10 +73,10 @@ func Make_Plot(w, h int, user_data *Data_Info) (image.Image, error) {
 		var err error
 		// I know.. this is stupid
 		switch len(user_data.XY) {
+		case 0:
 		case 1:
 			err = plotutil.AddLines(p,
 				user_data.XY[0].Label, user_data.XY[0].XYs,
-				user_data.XY[1].Label, user_data.XY[1].XYs,
 			)
 		case 2:
 			err = plotutil.AddLines(p,
@@ -191,7 +191,7 @@ func (gv *Graph_Viz) Update_And_Draw() {
 	if !gv.Initted {
 		// initialize and spawn window
 		user_data := gv.UserData
-		*gv = *NewGraphViz() //(will set inited to true)
+		*gv = *newGraphViz() //(will set inited to true)
 		gv.UserData = user_data
 	}
 
@@ -218,7 +218,7 @@ func (gv *Graph_Viz) Update_And_Draw() {
 	glfw.PollEvents()
 }
 
-func NewGraphViz() *Graph_Viz {
+func newGraphViz() *Graph_Viz {
 
 	w, h := 854, 480
 

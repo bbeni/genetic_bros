@@ -265,8 +265,8 @@ func Visualize_Game(gs *game.GameState, driver_moves []game.Direction, move_time
 
 	driver := Game_Driver{
 		DriverMoves:     driver_moves,
-		MoveTime:        0.4,
-		DelayOnGameover: 1.0,
+		MoveTime:        move_time,
+		DelayOnGameover: delay_on_gameover,
 	}
 
 	game_visual := Game_Visual_State{Game: gs, Driver: &driver, game_over_timer: 5.0}
