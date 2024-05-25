@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"image/png"
 	"math"
 	"math/rand"
+	"os"
 
 	"github.com/bbeni/genetic_bros/game"
 	"github.com/bbeni/genetic_bros/visualizer"
@@ -11,7 +13,7 @@ import (
 
 const (
 	NUMBER_OF_BOTS      = 1000 // has to be even!
-	CROSSOVER_PROB      = 0.33 // prob to exchange a whole layer of nn
+	CROSSOVER_PROB      = 0.13 // prob to exchange a whole layer of nn - Disabled for now!
 	NUMBER_GENERATIONS  = 60
 	MUTATUON_RATE       = 0.001
 	NN_MAX_START_WEIGHT = 0.5
@@ -66,7 +68,7 @@ func main() {
 		XY:     make([]visualizer.XYData, 2),
 		XLabel: "Generation Nr.",
 		YLabel: "Score",
-		Title:  "Neural Net Genetic Bots Evolution",
+		Title:  fmt.Sprintf("Neural Net Genetic Algorithm Evolution (%v parameters, 3 layers)", N_WEIGHTS),
 	}
 
 	viz.UserData.XY[0].Label = "Best Bot"
@@ -160,6 +162,18 @@ func main() {
 
 	for i := range NUMBER_OF_BOTS {
 		fmt.Printf("Steps: %v, Board: %v\n", bots[i].Gs.Step, bots[i].Gs.Board)
+	}
+
+	// save the end plot
+	plot_img, _ := visualizer.Make_Plot(viz.W, viz.H, viz.UserData)
+
+	f, err := os.Create("plot_neural_net.png")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	if err = png.Encode(f, plot_img); err != nil {
+		fmt.Printf("failed to encode: %v", err)
 	}
 
 	//  take the best bot and emulate

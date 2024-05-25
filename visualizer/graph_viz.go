@@ -109,11 +109,6 @@ func Make_Plot(w, h int, user_data *Data_Info) (image.Image, error) {
 			} */
 	}
 
-	// Save the plot to a PNG file.
-	//if err := p.Save(4*vg.Inch, 4*vg.Inch, "points.png"); err != nil {
-	//	panic(err)
-	//}
-
 	dpi := 72 * 2
 	dpi_o := vgimg.UseDPI(dpi)
 	wh_o := vgimg.UseWH(vg.Length(w*72/dpi), vg.Length(h*72/dpi))
@@ -122,7 +117,6 @@ func Make_Plot(w, h int, user_data *Data_Info) (image.Image, error) {
 	dc := draw.New(canvas)
 	p.Draw(dc)
 	img := canvas.Image()
-	//fmt.Printf(img.Bounds().String())
 	return img, nil
 }
 
